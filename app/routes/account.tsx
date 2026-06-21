@@ -75,6 +75,10 @@ function AccountMenu() {
         Orders &nbsp;
       </NavLink>
       &nbsp;|&nbsp;
+      <NavLink to="/account/bookings" style={isActiveStyle}>
+        &nbsp; Rendez-vous &nbsp;
+      </NavLink>
+      &nbsp;|&nbsp;
       <NavLink to="/account/profile" style={isActiveStyle}>
         &nbsp; Profile &nbsp;
       </NavLink>

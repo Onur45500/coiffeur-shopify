@@ -179,6 +179,24 @@ const FALLBACK_HEADER_MENU = {
   id: 'gid://shopify/Menu/199655587896',
   items: [
     {
+      id: 'gid://shopify/MenuItem/services',
+      resourceId: null,
+      tags: [],
+      title: 'Prestations',
+      type: 'HTTP',
+      url: '/services',
+      items: [],
+    },
+    {
+      id: 'gid://shopify/MenuItem/book',
+      resourceId: null,
+      tags: [],
+      title: 'Réserver',
+      type: 'HTTP',
+      url: '/book',
+      items: [],
+    },
+    {
       id: 'gid://shopify/MenuItem/461609500728',
       resourceId: null,
       tags: [],

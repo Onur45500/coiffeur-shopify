@@ -8,63 +8,123 @@ import type {
 } from 'storefrontapi.generated';
 import {ProductItem} from '~/components/ProductItem';
 import {MockShopNotice} from '~/components/MockShopNotice';
+import {ServiceCard} from '~/components/booking/ServiceCard';
+import {getActiveServices} from '~/lib/booking/actions.server';
+import type {Service} from '~/lib/database.types';
+import {bookingLabels} from '~/lib/i18n';
+import {homeJsonLd} from '~/lib/seo';
 
 export const meta: Route.MetaFunction = () => {
-  return [{title: 'Hydrogen | Home'}];
+  return [
+    {title: 'Coiffeur Paris — Salon & Boutique'},
+    {
+      name: 'description',
+      content:
+        'Salon de coiffure premium à Paris. Réservez en ligne et achetez vos produits capillaires.',
+    },
+  ];
 };
 
 export async function loader(args: Route.LoaderArgs) {
-  // Start fetching non-critical data without blocking time to first byte
   const deferredData = loadDeferredData(args);
-
-  // Await the critical data required to render initial state of the page
   const criticalData = await loadCriticalData(args);
-
   return {...deferredData, ...criticalData};
 }
 
-/**
- * Load data necessary for rendering content above the fold. This is the critical data
- * needed to render the page. If it's unavailable, the whole page should 400 or 500 error.
- */
 async function loadCriticalData({context}: Route.LoaderArgs) {
-  const [{collections}] = await Promise.all([
-    context.storefront.query(FEATURED_COLLECTION_QUERY),
-    // Add other queries here, so that they are loaded in parallel
+  const [collectionsResult, services] = await Promise.all([
+    context.storefront.query(FEATURED_COLLECTION_QUERY).catch(() => null),
+    getActiveServices(context.supabase).catch(() => []),
   ]);
 
   return {
     isShopLinked: Boolean(context.env.PUBLIC_STORE_DOMAIN),
-    featuredCollection: collections.nodes[0],
+    featuredCollection: collectionsResult?.collections?.nodes?.[0] ?? null,
+    featuredServices: services.slice(0, 3),
   };
 }
 
-/**
- * Load data for rendering content below the fold. This data is deferred and will be
- * fetched after the initial page load. If it's unavailable, the page should still 200.
- * Make sure to not throw any errors here, as it will cause the page to 500.
- */
 function loadDeferredData({context}: Route.LoaderArgs) {
   const recommendedProducts = context.storefront
     .query(RECOMMENDED_PRODUCTS_QUERY)
     .catch((error: Error) => {
-      // Log query errors, but don't throw them so the page can still render
       console.error(error);
       return null;
     });
 
-  return {
-    recommendedProducts,
-  };
+  return {recommendedProducts};
 }
+
+const TESTIMONIALS = [
+  {
+    name: 'Marie L.',
+    text: 'Un salon magnifique et une équipe à l’écoute. Ma coloration est parfaite !',
+  },
+  {
+    name: 'Thomas R.',
+    text: 'Réservation en ligne ultra simple. Je recommande Lucas pour les coupes homme.',
+  },
+  {
+    name: 'Sophie D.',
+    text: 'Produits de qualité et conseils personnalisés. Mon brushing tient toute la semaine.',
+  },
+];
 
 export default function Homepage() {
   const data = useLoaderData<typeof loader>();
+
   return (
     <div className="home">
       {data.isShopLinked ? null : <MockShopNotice />}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{__html: JSON.stringify(homeJsonLd())}}
+      />
+
+      <section className="home-hero">
+        <div className="home-hero-content">
+          <h1>{bookingLabels.heroTitle}</h1>
+          <p>{bookingLabels.heroSubtitle}</p>
+          <div className="home-hero-cta">
+            <Link to="/book" className="button primary">
+              {bookingLabels.bookAppointment}
+            </Link>
+            <Link to="/collections/all" className="button secondary">
+              {bookingLabels.shopProducts}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {data.featuredServices.length > 0 && (
+        <section className="home-section">
+          <h2>{bookingLabels.featuredServices}</h2>
+          <div className="services-grid">
+            {data.featuredServices.map((service: Service) => (
+              <ServiceCard key={service.id} service={service} />
+            ))}
+          </div>
+          <Link to="/services" className="link">
+            {bookingLabels.viewAllServices}
+          </Link>
+        </section>
+      )}
+
       <FeaturedCollection collection={data.featuredCollection} />
+
       <RecommendedProducts products={data.recommendedProducts} />
+
+      <section className="home-section testimonials">
+        <h2>{bookingLabels.testimonials}</h2>
+        <div className="testimonials-grid">
+          {TESTIMONIALS.map((t) => (
+            <blockquote key={t.name}>
+              <p>&ldquo;{t.text}&rdquo;</p>
+              <footer>— {t.name}</footer>
+            </blockquote>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -72,7 +132,7 @@ export default function Homepage() {
 function FeaturedCollection({
   collection,
 }: {
-  collection: FeaturedCollectionFragment;
+  collection: FeaturedCollectionFragment | null;
 }) {
   if (!collection) return null;
   const image = collection?.image;
@@ -90,7 +150,7 @@ function FeaturedCollection({
           />
         </div>
       )}
-      <h1>{collection.title}</h1>
+      <h2>{collection.title}</h2>
     </Link>
   );
 }
@@ -101,12 +161,9 @@ function RecommendedProducts({
   products: Promise<RecommendedProductsQuery | null>;
 }) {
   return (
-    <section
-      className="recommended-products"
-      aria-labelledby="recommended-products"
-    >
-      <h2 id="recommended-products">Recommended Products</h2>
-      <Suspense fallback={<div>Loading...</div>}>
+    <section className="home-section recommended-products">
+      <h2>Produits best-sellers</h2>
+      <Suspense fallback={<div>Chargement...</div>}>
         <Await resolve={products}>
           {(response) => (
             <div className="recommended-products-grid">
@@ -119,7 +176,6 @@ function RecommendedProducts({
           )}
         </Await>
       </Suspense>
-      <br />
     </section>
   );
 }
