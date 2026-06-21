@@ -1,6 +1,6 @@
-import {useEffect, useState} from 'react';
+import {useEffect} from 'react';
+import {useRevalidator} from 'react-router';
 import {formatInTimeZone} from 'date-fns-tz';
-import {createSupabaseBrowserClient} from '~/lib/supabase.client';
 
 type BookingRow = {
   id: string;
@@ -13,10 +13,8 @@ type BookingRow = {
 };
 
 export function AdminCalendar({
-  bookings: initialBookings,
+  bookings,
   timezone,
-  supabaseUrl,
-  supabaseAnonKey,
 }: {
   bookings: BookingRow[];
   timezone: string;
@@ -24,25 +22,17 @@ export function AdminCalendar({
   supabaseUrl: string;
   supabaseAnonKey: string;
 }) {
-  const [bookings, setBookings] = useState(initialBookings);
+  const revalidator = useRevalidator();
 
   useEffect(() => {
-    const supabase = createSupabaseBrowserClient(supabaseUrl, supabaseAnonKey);
-    const channel = supabase
-      .channel('admin-bookings')
-      .on(
-        'postgres_changes',
-        {event: '*', schema: 'public', table: 'bookings'},
-        () => {
-          window.location.reload();
-        },
-      )
-      .subscribe();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        revalidator.revalidate();
+      }
+    }, 30_000);
 
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [supabaseUrl, supabaseAnonKey]);
+    return () => window.clearInterval(interval);
+  }, [revalidator]);
 
   return (
     <div className="admin-calendar-grid">

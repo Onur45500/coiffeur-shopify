@@ -1,5 +1,3 @@
-import {Resend} from 'resend';
-import twilio from 'twilio';
 import type {Booking, Service, Staff} from '~/lib/database.types';
 import type {SupabaseServerClient} from '~/lib/supabase.server';
 import {formatInTimeZone} from 'date-fns-tz';
@@ -20,7 +18,6 @@ export async function sendBookingSms(
     return {sent: false, error: 'No phone number'};
   }
 
-  // Idempotency check
   const {data: current} = await supabase
     .from('bookings')
     .select('sms_sent_at')
@@ -40,12 +37,29 @@ export async function sendBookingSms(
   const message = `Bonjour ${booking.customer_name}, votre RDV "${service.name}" avec ${staff.name} est confirmé le ${dateStr}. À bientôt !`;
 
   try {
-    const client = twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
-    await client.messages.create({
-      body: message,
-      from: env.TWILIO_PHONE_NUMBER,
-      to: booking.customer_phone,
-    });
+    const credentials = btoa(
+      `${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`,
+    );
+    const response = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          From: env.TWILIO_PHONE_NUMBER,
+          To: booking.customer_phone,
+          Body: message,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      return {sent: false, error: `Twilio error: ${errorBody}`};
+    }
 
     await supabase
       .from('bookings')
@@ -91,32 +105,43 @@ export async function sendBookingEmail(
     'EEEE d MMMM yyyy à HH:mm',
   );
 
-  const icsContent = generateIcs(booking, service, staff, salonName, timezone);
+  const icsContent = generateIcs(booking, service, staff, salonName);
 
   try {
-    const resend = new Resend(env.RESEND_API_KEY);
-    await resend.emails.send({
-      from: env.RESEND_FROM_EMAIL,
-      to: booking.customer_email,
-      subject: `Confirmation RDV — ${service.name}`,
-      html: `
-        <h1>Réservation confirmée</h1>
-        <p>Bonjour ${booking.customer_name},</p>
-        <p>Votre rendez-vous est confirmé :</p>
-        <ul>
-          <li><strong>Prestation :</strong> ${service.name}</li>
-          <li><strong>Coiffeur :</strong> ${staff.name}</li>
-          <li><strong>Date :</strong> ${dateStr}</li>
-        </ul>
-        <p>À bientôt chez ${salonName} !</p>
-      `,
-      attachments: [
-        {
-          filename: 'rendez-vous.ics',
-          content: toBase64(icsContent),
-        },
-      ],
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: env.RESEND_FROM_EMAIL,
+        to: booking.customer_email,
+        subject: `Confirmation RDV — ${service.name}`,
+        html: `
+          <h1>Réservation confirmée</h1>
+          <p>Bonjour ${booking.customer_name},</p>
+          <p>Votre rendez-vous est confirmé :</p>
+          <ul>
+            <li><strong>Prestation :</strong> ${service.name}</li>
+            <li><strong>Coiffeur :</strong> ${staff.name}</li>
+            <li><strong>Date :</strong> ${dateStr}</li>
+          </ul>
+          <p>À bientôt chez ${salonName} !</p>
+        `,
+        attachments: [
+          {
+            filename: 'rendez-vous.ics',
+            content: toBase64(icsContent),
+          },
+        ],
+      }),
     });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      return {sent: false, error: `Resend error: ${errorBody}`};
+    }
 
     await supabase
       .from('bookings')
@@ -138,7 +163,6 @@ function generateIcs(
   service: Service,
   staff: Staff,
   salonName: string,
-  timezone: string,
 ): string {
   const start = formatIcsDate(new Date(booking.start_time));
   const end = formatIcsDate(new Date(booking.end_time));
@@ -167,9 +191,9 @@ function formatIcsDate(date: Date) {
 function toBase64(value: string) {
   const bytes = new TextEncoder().encode(value);
   let binary = '';
-  bytes.forEach((byte) => {
+  for (const byte of bytes) {
     binary += String.fromCharCode(byte);
-  });
+  }
   return btoa(binary);
 }
 

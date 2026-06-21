@@ -1,4 +1,6 @@
-import {createSupabaseAnonClient} from '~/lib/supabase.server';
+import {
+  getUserFromAccessToken,
+} from '~/lib/supabase-auth.server';
 
 const ADMIN_SESSION_KEY = 'admin_access_token';
 const ADMIN_REFRESH_KEY = 'admin_refresh_token';
@@ -8,11 +10,10 @@ export async function getAdminSession(request: Request, env: Env) {
   const accessToken = parseCookie(cookie, ADMIN_SESSION_KEY);
   if (!accessToken) return null;
 
-  const supabase = createSupabaseAnonClient(env);
-  const {data, error} = await supabase.auth.getUser(accessToken);
-  if (error || !data.user) return null;
+  const user = await getUserFromAccessToken(env, accessToken);
+  if (!user) return null;
 
-  return {user: data.user, accessToken};
+  return {user, accessToken};
 }
 
 export function setAdminSessionHeaders(

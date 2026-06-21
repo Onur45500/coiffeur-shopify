@@ -1,6 +1,6 @@
 import {data, Form, redirect, useActionData} from 'react-router';
 import type {Route} from './+types/admin_.login';
-import {createSupabaseAnonClient} from '~/lib/supabase.server';
+import {signInWithPassword} from '~/lib/supabase-auth.server';
 import {
   setAdminSessionHeaders,
   getAdminSession,
@@ -34,13 +34,13 @@ export async function action({request, context}: Route.ActionArgs) {
     return data({error: 'Identifiants invalides'}, {status: 400});
   }
 
-  const supabase = createSupabaseAnonClient(context.env);
-  const {data: authData, error} = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
-    password: parsed.data.password,
-  });
+  const authData = await signInWithPassword(
+    context.env,
+    parsed.data.email,
+    parsed.data.password,
+  ).catch(() => null);
 
-  if (error || !authData.session) {
+  if (!authData) {
     return data({error: 'Email ou mot de passe incorrect'}, {status: 401});
   }
 
@@ -55,8 +55,8 @@ export async function action({request, context}: Route.ActionArgs) {
   }
 
   const headers = setAdminSessionHeaders(
-    authData.session.access_token,
-    authData.session.refresh_token,
+    authData.accessToken,
+    authData.refreshToken,
   );
 
   throw redirect('/admin', {headers});
