@@ -1,22 +1,48 @@
-import {createHmac, timingSafeEqual} from 'crypto';
+function timingSafeEqualStrings(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
 
-export function verifyShopifyWebhook(
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
+export async function verifyShopifyWebhook(
   body: string,
   hmacHeader: string | null,
   secret: string,
-): boolean {
+): Promise<boolean> {
   if (!hmacHeader) return false;
 
-  const digest = createHmac('sha256', secret).update(body, 'utf8').digest('base64');
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    {name: 'HMAC', hash: 'SHA-256'},
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(body),
+  );
+  const digest = bytesToBase64(new Uint8Array(signature));
 
-  try {
-    return timingSafeEqual(Buffer.from(digest), Buffer.from(hmacHeader));
-  } catch {
-    return false;
-  }
+  return timingSafeEqualStrings(digest, hmacHeader);
 }
 
-export function extractBookingIdFromOrder(payload: ShopifyOrderPayload): string | null {
+export function extractBookingIdFromOrder(
+  payload: ShopifyOrderPayload,
+): string | null {
   const noteMatch = payload.note?.match(/booking_id:([a-f0-9-]+)/i);
   if (noteMatch) return noteMatch[1];
 

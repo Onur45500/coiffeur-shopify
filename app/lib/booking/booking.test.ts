@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {availabilityQuerySchema, customerFormSchema} from '~/lib/booking/schema';
 import {groupSlotsByDate} from '~/lib/booking/format';
 import {calculateDeposit} from '~/lib/shopify/pricing';
-import {extractBookingIdFromOrder} from '~/lib/shopify/webhooks.server';
+import {extractBookingIdFromOrder, verifyShopifyWebhook} from '~/lib/shopify/webhooks.server';
 
 describe('availabilityQuerySchema', () => {
   it('validates correct query params', () => {
@@ -80,5 +80,31 @@ describe('extractBookingIdFromOrder', () => {
       ],
     });
     expect(id).toBe('abc-123');
+  });
+});
+
+describe('verifyShopifyWebhook', () => {
+  it('validates HMAC signature using Web Crypto', async () => {
+    const body = '{"id":1}';
+    const secret = 'test-secret';
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      {name: 'HMAC', hash: 'SHA-256'},
+      false,
+      ['sign'],
+    );
+    const signature = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(body),
+    );
+    const hmac = btoa(String.fromCharCode(...new Uint8Array(signature)));
+
+    await expect(verifyShopifyWebhook(body, hmac, secret)).resolves.toBe(true);
+    await expect(verifyShopifyWebhook(body, 'invalid', secret)).resolves.toBe(
+      false,
+    );
   });
 });

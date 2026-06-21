@@ -15,7 +15,7 @@ export async function action({request, context}: Route.ActionArgs) {
   const body = await request.text();
   const hmac = request.headers.get('X-Shopify-Hmac-Sha256');
 
-  if (!verifyShopifyWebhook(body, hmac, secret)) {
+  if (!(await verifyShopifyWebhook(body, hmac, secret))) {
     return new Response('Invalid signature', {status: 401});
   }
 
