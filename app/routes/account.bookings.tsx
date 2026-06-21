@@ -1,7 +1,7 @@
 import {Link, useLoaderData} from 'react-router';
 import type {Route} from './+types/account.bookings';
 import {getBookingsByEmail} from '~/lib/booking/actions.server';
-import {formatBookingDate, formatSlotTime} from '~/lib/booking/actions.server';
+import {formatBookingDate, formatSlotTime} from '~/lib/booking/format';
 import {bookingLabels} from '~/lib/i18n';
 import {CUSTOMER_DETAILS_QUERY} from '~/graphql/customer-account/CustomerDetailsQuery';
 

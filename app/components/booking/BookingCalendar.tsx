@@ -3,7 +3,7 @@ import {Form, Link} from 'react-router';
 import {DayPicker} from 'react-day-picker';
 import 'react-day-picker/style.css';
 import type {AvailableSlot} from '~/lib/database.types';
-import {formatSlotTime, groupSlotsByDate} from '~/lib/booking/actions.server';
+import {formatSlotTime, groupSlotsByDate} from '~/lib/booking/format';
 import {bookingLabels} from '~/lib/i18n';
 
 export function BookingCalendar({

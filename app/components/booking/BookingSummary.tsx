@@ -1,6 +1,6 @@
 import {Form, Link} from 'react-router';
 import type {Service, Staff} from '~/lib/database.types';
-import {formatBookingDate, formatSlotTime} from '~/lib/booking/actions.server';
+import {formatBookingDate, formatSlotTime} from '~/lib/booking/format';
 import {bookingLabels, formatDuration, formatPrice} from '~/lib/i18n';
 
 export function BookingSummary({

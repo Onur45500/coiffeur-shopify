@@ -20,11 +20,7 @@ import {
 import {customerFormSchema} from '~/lib/booking/schema';
 import type {Service, Staff} from '~/lib/database.types';
 import {bookingLabels} from '~/lib/i18n';
-import {
-  addBookingToCart,
-  calculateDeposit,
-  createDraftOrderForBooking,
-} from '~/lib/shopify/admin.server';
+import {calculateDeposit} from '~/lib/shopify/pricing';
 import {addDays, format} from 'date-fns';
 
 const BOOKING_SESSION_KEY = 'bookingDraft';
@@ -152,6 +148,11 @@ export async function action({request, context}: Route.ActionArgs) {
   }
 
   if (intent === 'confirm') {
+    const {
+      addBookingToCart,
+      createDraftOrderForBooking,
+    } = await import('~/lib/shopify/admin.server');
+
     const draft = context.session.get(BOOKING_SESSION_KEY) as
       | BookingDraft
       | undefined;

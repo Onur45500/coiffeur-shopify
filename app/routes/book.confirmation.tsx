@@ -1,7 +1,7 @@
 import {Link, useLoaderData} from 'react-router';
 import type {Route} from './+types/book.confirmation';
 import {getBookingById} from '~/lib/booking/actions.server';
-import {formatBookingDate, formatSlotTime} from '~/lib/booking/actions.server';
+import {formatBookingDate, formatSlotTime} from '~/lib/booking/format';
 import {bookingLabels} from '~/lib/i18n';
 
 export const meta: Route.MetaFunction = () => {

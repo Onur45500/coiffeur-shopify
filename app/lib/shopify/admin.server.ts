@@ -1,6 +1,7 @@
 import type {Service} from '~/lib/database.types';
 import type {Database} from '~/lib/database.types';
 import type {SupabaseServerClient} from '~/lib/supabase.server';
+import {calculateDeposit} from '~/lib/shopify/pricing';
 
 const ADMIN_API_VERSION = '2025-01';
 
@@ -273,8 +274,6 @@ export async function addBookingToCart(
   ]);
 }
 
-export function calculateDeposit(price: number, depositPercent: number) {
-  return Math.round(price * (depositPercent / 100) * 100) / 100;
-}
+export {calculateDeposit};
 
 export type {Service};

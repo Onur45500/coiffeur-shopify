@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {availabilityQuerySchema, customerFormSchema} from '~/lib/booking/schema';
-import {groupSlotsByDate} from '~/lib/booking/actions.server';
-import {calculateDeposit} from '~/lib/shopify/admin.server';
+import {groupSlotsByDate} from '~/lib/booking/format';
+import {calculateDeposit} from '~/lib/shopify/pricing';
 import {extractBookingIdFromOrder} from '~/lib/shopify/webhooks.server';
 
 describe('availabilityQuerySchema', () => {
